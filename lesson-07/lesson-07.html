@@ -13,7 +13,37 @@
 	    <input type="range" min="0" max="100">
     </p>
     
-    <script type="application/dart" src="Lesson-06.dart"></script>
-    <script src="http://dart.googlecode.com/svn/branches/bleeding_edge/dart/client/dart.js"></script>
+        <h2>Directional light:</h2>
+
+    <table style="border: 0; padding: 10px;">
+        <tr>
+            <td><b>Direction:</b>
+            <td>X: <input type="text" id="lightDirectionX" value="-0.25" />
+            <td>Y: <input type="text" id="lightDirectionY" value="-0.125" />
+            <td>Z: <input type="text" id="lightDirectionZ" value="-0.25" />
+        </tr>
+        <tr>
+            <td><b>Colour:</b>
+            <td>R: <input type="text" id="directionalR" value="0.8" />
+            <td>G: <input type="text" id="directionalG" value="0.8" />
+            <td>B: <input type="text" id="directionalB" value="0.8" />
+        </tr>
+    </table>
+
+    <h2>Ambient light:</h2>
+    <table style="border: 0; padding: 10px;">
+        <tr>
+            <td><b>Colour:</b>
+            <td>R: <input type="text" id="ambientR" value="0.2" />
+            <td>G: <input type="text" id="ambientG" value="0.2" />
+            <td>B: <input type="text" id="ambientB" value="0.2" />
+        </tr>
+    </table>
+
+    <a href="http://learningwebgl.com/blog/?p=684">&lt;&lt; Back to Lesson 7</a>
+    
+    
+    <script type="application/dart" src="Lesson-07.dart"></script>
+    <script src="../packages/browser/dart.js"></script>
   </body>
 </html>

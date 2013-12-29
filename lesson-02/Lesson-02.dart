@@ -24,8 +24,8 @@ class Lesson02 {
   webgl.Buffer _squareVertexPositionBuffer;
   webgl.Buffer _squareVertexColorBuffer;
   
-  mat4 _pMatrix;
-  mat4 _mvMatrix;
+  Matrix4 _pMatrix;
+  Matrix4 _mvMatrix;
   
   int _aVertexPosition;
   int _aVertexColor;
@@ -190,8 +190,8 @@ class Lesson02 {
     _pMatrix = makePerspectiveMatrix(radians(45.0), _viewportWidth / _viewportHeight, 0.1, 100.0);
     
     // draw triangle
-    _mvMatrix = new mat4.identity();
-    _mvMatrix.translate(new vec3(-1.5, 0.0, -7.0));
+    _mvMatrix = new Matrix4.identity();
+    _mvMatrix.translate(new Vector3(-1.5, 0.0, -7.0));
     
     // verticies
     _gl.bindBuffer(webgl.RenderingContext.ARRAY_BUFFER, _triangleVertexPositionBuffer);
@@ -204,7 +204,7 @@ class Lesson02 {
     _gl.drawArrays(webgl.RenderingContext.TRIANGLES, 0, 3); // triangles, start at 0, total 3
     
     // draw square
-    _mvMatrix.translate(new vec3(3.0, 0.0, 0.0));
+    _mvMatrix.translate(new Vector3(3.0, 0.0, 0.0));
     
     // verticies
     _gl.bindBuffer(webgl.RenderingContext.ARRAY_BUFFER, _squareVertexPositionBuffer);
@@ -221,6 +221,6 @@ class Lesson02 {
 }
 
 void main() {
-  Lesson02 lesson = new Lesson02(document.query('#drawHere'));
+  Lesson02 lesson = new Lesson02(querySelector('#drawHere'));
   lesson.render();
 }

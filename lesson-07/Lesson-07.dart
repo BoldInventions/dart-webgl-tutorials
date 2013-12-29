@@ -1,6 +1,9 @@
-#import('dart:html');
-
-#import('../gl-matrix-dart/gl-matrix.dart');
+import 'dart:html';
+import 'package:vector_math/vector_math.dart';
+import 'dart:collection';
+import 'dart:web_gl' as webgl;
+import 'dart:typed_data';
+import 'dart:math';
 
 
 /**
@@ -12,16 +15,16 @@
 class Lesson06 {
   
   CanvasElement _canvas;
-  WebGLRenderingContext _gl;
-  WebGLProgram _shaderProgram;
+  webgl.RenderingContext _gl;
+  webgl.Program _shaderProgram;
   int _viewportWidth, _viewportHeight;
   
-  WebGLTexture _texture;
+  webgl.Texture _texture;
   
-  WebGLBuffer _cubeVertexTextureCoordBuffer;
-  WebGLBuffer _cubeVertexPositionBuffer;
-  WebGLBuffer _cubeVertexIndexBuffer;
-  WebGLBuffer _cubeVertexNormalBuffer;
+  webgl.Buffer _cubeVertexTextureCoordBuffer;
+  webgl.Buffer _cubeVertexPositionBuffer;
+  webgl.Buffer _cubeVertexIndexBuffer;
+  webgl.Buffer _cubeVertexNormalBuffer;
   
   Matrix4 _pMatrix;
   Matrix4 _mvMatrix;
@@ -30,14 +33,14 @@ class Lesson06 {
   int _aVertexPosition;
   int _aTextureCoord;
   int _aVertexNormal;
-  WebGLUniformLocation _uPMatrix;
-  WebGLUniformLocation _uMVMatrix;
-  WebGLUniformLocation _uNMatrix;
-  WebGLUniformLocation _uSampler;
-  WebGLUniformLocation _uUseLighting;
-  WebGLUniformLocation _uLightDirection;
-  WebGLUniformLocation _uAmbientColor;
-  WebGLUniformLocation _uDirectionalColor;
+  webgl.UniformLocation _uPMatrix;
+  webgl.UniformLocation _uMVMatrix;
+  webgl.UniformLocation _uNMatrix;
+  webgl.UniformLocation _uSampler;
+  webgl.UniformLocation _uUseLighting;
+  webgl.UniformLocation _uLightDirection;
+  webgl.UniformLocation _uAmbientColor;
+  webgl.UniformLocation _uDirectionalColor;
   
   InputElement _elmLighting;
   InputElement _elmAmbientR, _elmAmbientG, _elmAmbientB;
@@ -49,7 +52,7 @@ class Lesson06 {
          _zPos = -5.0;
   
   int _filter = 0;
-  int _lastTime = 0;
+  double _lastTime = 0.0;
   
   List<bool> _currentlyPressedKeys;
   
@@ -59,12 +62,13 @@ class Lesson06 {
   Lesson06(CanvasElement canvas) {
     // weird, but without specifying size this array throws exception on []
     _currentlyPressedKeys = new List<bool>(128);
+    for(int i=0; i<128; i++) _currentlyPressedKeys[i]=false;
     _viewportWidth = canvas.width;
     _viewportHeight = canvas.height;
     _gl = canvas.getContext("experimental-webgl");
     
-    _mvMatrix = new Matrix4();
-    _pMatrix = new Matrix4();
+    _mvMatrix = new Matrix4.identity();
+    _pMatrix = new Matrix4.identity();
     
     _initShaders();
     _initBuffers();
@@ -80,21 +84,21 @@ class Lesson06 {
     //_requestAnimationFrame = window.webkitRequestAnimationFrame;
     
     _gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    _gl.enable(WebGLRenderingContext.DEPTH_TEST);
+    _gl.enable(webgl.RenderingContext.DEPTH_TEST);
     
-    document.on.keyDown.add(this._handleKeyDown);
-    document.on.keyUp.add(this._handleKeyUp);
+    window.onKeyUp.listen(this._handleKeyUp);
+    window.onKeyDown.listen(this._handleKeyDown);
     
-    _elmLighting = document.query("#lighting");
-    _elmAmbientR = document.query("#ambientR");
-    _elmAmbientG = document.query("#ambientG");
-    _elmAmbientB = document.query("#ambientB");
-    _elmLightDirectionX = document.query("#lightDirectionX");
-    _elmLightDirectionY = document.query("#lightDirectionY");
-    _elmLightDirectionZ = document.query("#lightDirectionZ");
-    _elmDirectionalR = document.query("#directionalR");
-    _elmDirectionalG = document.query("#directionalG");
-    _elmDirectionalB = document.query("#directionalB");
+    _elmLighting = querySelector("#lighting");
+    _elmAmbientR = querySelector("#ambientR");
+    _elmAmbientG = querySelector("#ambientG");
+    _elmAmbientB = querySelector("#ambientB");
+    _elmLightDirectionX = querySelector("#lightDirectionX");
+    _elmLightDirectionY = querySelector("#lightDirectionY");
+    _elmLightDirectionZ = querySelector("#lightDirectionZ");
+    _elmDirectionalR = querySelector("#directionalR");
+    _elmDirectionalG = querySelector("#directionalG");
+    _elmDirectionalB = querySelector("#directionalB");
   }
   
 
@@ -104,15 +108,34 @@ class Lesson06 {
     String vsSource = """
     attribute vec3 aVertexPosition;
     attribute vec2 aTextureCoord;
+    attribute vec3 aVertexNormal;
   
     uniform mat4 uMVMatrix;
     uniform mat4 uPMatrix;
+    uniform mat3 uNMatrix;
+
+    uniform vec3 uAmbientColor;
+
+    uniform vec3 uLightingDirection;
+    uniform vec3 uDirectionalColor;
+
+    uniform bool uUseLighting;
   
     varying vec2 vTextureCoord;
+    varying vec3 vLightWeighting;
   
     void main(void) {
       gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
       vTextureCoord = aTextureCoord;
+      if(!uUseLighting)
+      {
+         vLightWeighting = vec3(1.0, 1.0, 1.0);
+      } else
+      {
+         vec3 transformedNormal = uNMatrix * aVertexNormal;
+         float directionalLightWeighting = max(dot(transformedNormal, uLightingDirection), 0.0);
+         vLightWeighting = uAmbientColor + uDirectionalColor*directionalLightWeighting;
+      }
     }
     """;
     
@@ -122,21 +145,23 @@ class Lesson06 {
     precision mediump float;
 
     varying vec2 vTextureCoord;
+    varying vec3 vLightWeighting;
 
     uniform sampler2D uSampler;
 
     void main(void) {
-      gl_FragColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+      vec4 textureColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+      gl_FragColor = vec4(textureColor.rgb * vLightWeighting, textureColor.a);
     }
     """;
     
     // vertex shader compilation
-    WebGLShader vs = _gl.createShader(WebGLRenderingContext.VERTEX_SHADER);
+    webgl.Shader vs = _gl.createShader(webgl.RenderingContext.VERTEX_SHADER);
     _gl.shaderSource(vs, vsSource);
     _gl.compileShader(vs);
     
     // fragment shader compilation
-    WebGLShader fs = _gl.createShader(WebGLRenderingContext.FRAGMENT_SHADER);
+    webgl.Shader fs = _gl.createShader(webgl.RenderingContext.FRAGMENT_SHADER);
     _gl.shaderSource(fs, fsSource);
     _gl.compileShader(fs);
     
@@ -151,15 +176,15 @@ class Lesson06 {
      * Check if shaders were compiled properly. This is probably the most painful part
      * since there's no way to "debug" shader compilation
      */
-    if (!_gl.getShaderParameter(vs, WebGLRenderingContext.COMPILE_STATUS)) { 
+    if (!_gl.getShaderParameter(vs, webgl.RenderingContext.COMPILE_STATUS)) { 
       print(_gl.getShaderInfoLog(vs));
     }
     
-    if (!_gl.getShaderParameter(fs, WebGLRenderingContext.COMPILE_STATUS)) { 
+    if (!_gl.getShaderParameter(fs, webgl.RenderingContext.COMPILE_STATUS)) { 
       print(_gl.getShaderInfoLog(fs));
     }
     
-    if (!_gl.getProgramParameter(_shaderProgram, WebGLRenderingContext.LINK_STATUS)) { 
+    if (!_gl.getProgramParameter(_shaderProgram, webgl.RenderingContext.LINK_STATUS)) { 
       print(_gl.getProgramInfoLog(_shaderProgram));
     }
     
@@ -178,7 +203,7 @@ class Lesson06 {
     _uSampler = _gl.getUniformLocation(_shaderProgram, "uSampler");
     _uUseLighting = _gl.getUniformLocation(_shaderProgram, "uUseLighting");
     _uAmbientColor = _gl.getUniformLocation(_shaderProgram, "uAmbientColor");
-    _uLightDirection = _gl.getUniformLocation(_shaderProgram, "uLightDirection");
+    _uLightDirection = _gl.getUniformLocation(_shaderProgram, "uLightingDirection");
     _uDirectionalColor = _gl.getUniformLocation(_shaderProgram, "uDirectionalColor");
 
   }
@@ -190,7 +215,7 @@ class Lesson06 {
     
     // create square
     _cubeVertexPositionBuffer = _gl.createBuffer();
-    _gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, _cubeVertexPositionBuffer);
+    _gl.bindBuffer(webgl.RenderingContext.ARRAY_BUFFER, _cubeVertexPositionBuffer);
     // fill "current buffer" with triangle verticies
     vertices = [
         // Front face
@@ -229,10 +254,10 @@ class Lesson06 {
         -1.0,  1.0,  1.0,
         -1.0,  1.0, -1.0,
     ];
-    _gl.bufferData(WebGLRenderingContext.ARRAY_BUFFER, new Float32Array.fromList(vertices), WebGLRenderingContext.STATIC_DRAW);
+    _gl.bufferData(webgl.RenderingContext.ARRAY_BUFFER, new Float32List.fromList(vertices), webgl.RenderingContext.STATIC_DRAW);
     
     _cubeVertexTextureCoordBuffer = _gl.createBuffer();
-    _gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, _cubeVertexTextureCoordBuffer);
+    _gl.bindBuffer(webgl.RenderingContext.ARRAY_BUFFER, _cubeVertexTextureCoordBuffer);
     textureCoords = [
         // Front face
         0.0, 0.0,
@@ -270,10 +295,10 @@ class Lesson06 {
         1.0, 1.0,
         0.0, 1.0,
     ];
-    _gl.bufferData(WebGLRenderingContext.ARRAY_BUFFER, new Float32Array.fromList(textureCoords), WebGLRenderingContext.STATIC_DRAW);
+    _gl.bufferData(webgl.RenderingContext.ARRAY_BUFFER, new Float32List.fromList(textureCoords), webgl.RenderingContext.STATIC_DRAW);
     
     _cubeVertexIndexBuffer = _gl.createBuffer();
-    _gl.bindBuffer(WebGLRenderingContext.ELEMENT_ARRAY_BUFFER, _cubeVertexIndexBuffer);
+    _gl.bindBuffer(webgl.RenderingContext.ELEMENT_ARRAY_BUFFER, _cubeVertexIndexBuffer);
     List<int> _cubeVertexIndices = [
          0,  1,  2,    0,  2,  3, // Front face
          4,  5,  6,    4,  6,  7, // Back face
@@ -282,11 +307,11 @@ class Lesson06 {
         16, 17, 18,   16, 18, 19, // Right face
         20, 21, 22,   20, 22, 23  // Left face
     ];
-    _gl.bufferData(WebGLRenderingContext.ELEMENT_ARRAY_BUFFER, new Uint16Array.fromList(_cubeVertexIndices), WebGLRenderingContext.STATIC_DRAW);
+    _gl.bufferData(webgl.RenderingContext.ELEMENT_ARRAY_BUFFER, new Uint16List.fromList(_cubeVertexIndices), webgl.RenderingContext.STATIC_DRAW);
     
     
     _cubeVertexNormalBuffer = _gl.createBuffer();
-    _gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, _cubeVertexNormalBuffer);
+    _gl.bindBuffer(webgl.RenderingContext.ARRAY_BUFFER, _cubeVertexNormalBuffer);
     vertexNormals = [
       // Front face
        0.0,  0.0,  1.0,
@@ -324,130 +349,168 @@ class Lesson06 {
       -1.0,  0.0,  0.0,
       -1.0,  0.0,  0.0,
     ];
-    _gl.bufferData(WebGLRenderingContext.ARRAY_BUFFER, new Float32Array.fromList(vertexNormals), WebGLRenderingContext.STATIC_DRAW);
+    _gl.bufferData(webgl.RenderingContext.ARRAY_BUFFER, new Float32List.fromList(vertexNormals), webgl.RenderingContext.STATIC_DRAW);
 
   }
   
   void _initTexture() {
     _texture = _gl.createTexture();
     ImageElement image = new Element.tag('img');
-    image.on.load.add((e) {
-      _handleLoadedTexture(_texture, image);
-    });
+    image.onLoad.listen((Event e) { _handleLoadedTexture(_texture, image); });
     image.src = "./crate.gif";
   }
   
-  void _handleLoadedTexture(WebGLTexture texture, ImageElement img) {
-    _gl.pixelStorei(WebGLRenderingContext.UNPACK_FLIP_Y_WEBGL, 1); // second argument must be an int (no boolean)
+  void _handleLoadedTexture(webgl.Texture texture, ImageElement img) {
+    _gl.pixelStorei(webgl.RenderingContext.UNPACK_FLIP_Y_WEBGL, 1); // second argument must be an int (no boolean)
     
-    _gl.bindTexture(WebGLRenderingContext.TEXTURE_2D, texture);
-    _gl.texImage2D(WebGLRenderingContext.TEXTURE_2D, 0, WebGLRenderingContext.RGBA, WebGLRenderingContext.RGBA, WebGLRenderingContext.UNSIGNED_BYTE, img);
-    _gl.texParameteri(WebGLRenderingContext.TEXTURE_2D, WebGLRenderingContext.TEXTURE_MAG_FILTER, WebGLRenderingContext.LINEAR);
-    _gl.texParameteri(WebGLRenderingContext.TEXTURE_2D, WebGLRenderingContext.TEXTURE_MIN_FILTER, WebGLRenderingContext.LINEAR_MIPMAP_NEAREST);
-    _gl.generateMipmap(WebGLRenderingContext.TEXTURE_2D);
+    _gl.bindTexture(webgl.RenderingContext.TEXTURE_2D, texture);
+    _gl.texImage2D(webgl.RenderingContext.TEXTURE_2D, 0, webgl.RenderingContext.RGBA, webgl.RenderingContext.RGBA, webgl.RenderingContext.UNSIGNED_BYTE, img);
+    _gl.texParameteri(webgl.RenderingContext.TEXTURE_2D, webgl.RenderingContext.TEXTURE_MAG_FILTER, webgl.RenderingContext.LINEAR);
+    _gl.texParameteri(webgl.RenderingContext.TEXTURE_2D, webgl.RenderingContext.TEXTURE_MIN_FILTER, webgl.RenderingContext.LINEAR_MIPMAP_NEAREST);
+    _gl.generateMipmap(webgl.RenderingContext.TEXTURE_2D);
     
-    _gl.bindTexture(WebGLRenderingContext.TEXTURE_2D, null);
+    _gl.bindTexture(webgl.RenderingContext.TEXTURE_2D, null);
   }
   
   void _setMatrixUniforms() {
-    _gl.uniformMatrix4fv(_uPMatrix, false, _pMatrix.array);
-    _gl.uniformMatrix4fv(_uMVMatrix, false, _mvMatrix.array);
+    Float32List tmpList = new Float32List(16);
+    Float32List tmpList9 = new Float32List(9);
     
-    Matrix3 normalMatrix = _mvMatrix.toInverseMat3();
+    _pMatrix.copyIntoArray(tmpList);
+    _gl.uniformMatrix4fv(_uPMatrix, false, tmpList);
+    
+    _mvMatrix.copyIntoArray(tmpList);
+    _gl.uniformMatrix4fv(_uMVMatrix, false, tmpList);
+    
+    Matrix4 mvInverse = new Matrix4.identity();
+    mvInverse.copyInverse(_mvMatrix);
+    Matrix3 normalMatrix = mvInverse.getRotation();
+
+    
+  //  Matrix3 normalMatrix = _mvMatrix.toInverseMat3();
     normalMatrix.transpose();
-    _gl.uniformMatrix3fv(_uNMatrix, false, normalMatrix.array);
+    normalMatrix.copyIntoArray(tmpList9);
+    _gl.uniformMatrix3fv(_uNMatrix, false, tmpList9);
   }
   
-  bool render(int time) {
+  bool render(double time) {
     _gl.viewport(0, 0, _viewportWidth, _viewportHeight);
-    _gl.clear(WebGLRenderingContext.COLOR_BUFFER_BIT | WebGLRenderingContext.DEPTH_BUFFER_BIT);
+    _gl.clear(webgl.RenderingContext.COLOR_BUFFER_BIT | webgl.RenderingContext.DEPTH_BUFFER_BIT);
     
     // field of view is 45°, width-to-height ratio, hide things closer than 0.1 or further than 100
-    Matrix4.perspective(45, _viewportWidth / _viewportHeight, 0.1, 100.0, _pMatrix);
+//    Matrix4.perspective(45, _viewportWidth / _viewportHeight, 0.1, 100.0, _pMatrix);
+    _pMatrix = makePerspectiveMatrix(radians(45.0), _viewportWidth / _viewportHeight, 0.1, 100.0);
     
-    // draw triangle
-    _mvMatrix.identity();
+    _mvMatrix = new Matrix4.identity();
+    _mvMatrix.translate(new Vector3(0.0, 0.0, -5.0));
 
-    _mvMatrix.translate(new Vector3.fromList([0.0, 0.0, _zPos]));
-
-    _mvMatrix.rotate(_degToRad(_xRot), new Vector3.fromList([1, 0, 0]));
-    _mvMatrix.rotate(_degToRad(_yRot), new Vector3.fromList([0, 1, 0]));
+    _mvMatrix.rotate(new Vector3(1.0, 0.0, 0.0), radians(_xRot));
+    _mvMatrix.rotate(new Vector3(0.0, 1.0, 0.0), radians(_yRot));
     //_mvMatrix.rotate(_degToRad(_zRot), new Vector3.fromList([0, 0, 1]));
     
     // verticies
-    _gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, _cubeVertexPositionBuffer);
-    _gl.vertexAttribPointer(_aVertexPosition, 3, WebGLRenderingContext.FLOAT, false, 0, 0);
+    _gl.bindBuffer(webgl.RenderingContext.ARRAY_BUFFER, _cubeVertexPositionBuffer);
+    _gl.vertexAttribPointer(_aVertexPosition, 3, webgl.RenderingContext.FLOAT, false, 0, 0);
     
     // texture
-    _gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, _cubeVertexTextureCoordBuffer);
-    _gl.vertexAttribPointer(_aTextureCoord, 2, WebGLRenderingContext.FLOAT, false, 0, 0);
+    _gl.bindBuffer(webgl.RenderingContext.ARRAY_BUFFER, _cubeVertexTextureCoordBuffer);
+    _gl.vertexAttribPointer(_aTextureCoord, 2, webgl.RenderingContext.FLOAT, false, 0, 0);
     
     // light
-    _gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, _cubeVertexNormalBuffer);
-    _gl.vertexAttribPointer(_aVertexNormal, 3, WebGLRenderingContext.FLOAT, false, 0, 0);
+    _gl.bindBuffer(webgl.RenderingContext.ARRAY_BUFFER, _cubeVertexNormalBuffer);
+    _gl.vertexAttribPointer(_aVertexNormal, 3, webgl.RenderingContext.FLOAT, false, 0, 0);
 
 
-    _gl.activeTexture(WebGLRenderingContext.TEXTURE0);
-    _gl.bindTexture(WebGLRenderingContext.TEXTURE_2D, _texture);
+    _gl.activeTexture(webgl.RenderingContext.TEXTURE0);
+    _gl.bindTexture(webgl.RenderingContext.TEXTURE_2D, _texture);
     //_gl.uniform1i(_uSamplerUniform, 0);
     
     // draw lighting?
     _gl.uniform1i(_uUseLighting, _elmLighting.checked ? 1 : 0); // must be int, not bool
     
+    num aR=0.0;
+    num aG=0.0;
+    num aB=0.0;
+    num dR=0.0;
+    num dG=0.0;
+    num dB=0.0;
+    
+    num r = 0.0;
+    num g = 0.0;
+    num b = 0.0;
+    
+    try
+    {
+    aR = double.parse(_elmAmbientR.value);
+    aG = double.parse(_elmAmbientG.value);
+    aB = double.parse(_elmAmbientB.value);
+    dR = double.parse(_elmLightDirectionX.value);
+    dG = double.parse(_elmLightDirectionY.value);
+    dB = double.parse(_elmLightDirectionZ.value);
+    r = double.parse(_elmDirectionalR.value);
+    g = double.parse(_elmDirectionalG.value);
+    b = double.parse(_elmDirectionalB.value);
+    } catch(exception)
+    {}
+    
+    
     if (_elmLighting.checked) {
       _gl.uniform3f(
         _uAmbientColor,
-        _elmAmbientR.valueAsNumber / 100,
-        _elmAmbientG.valueAsNumber / 100,
-        _elmAmbientB.valueAsNumber / 100
+        aR,
+        aG,
+        aB
       );
       
-      Vector3 lightingDirection = new Vector3.fromValues(
-        _elmLightDirectionX.valueAsNumber / 100,
-        _elmLightDirectionY.valueAsNumber / 100,
-        _elmLightDirectionZ.valueAsNumber / 100
+      Vector3 lightingDirection = new Vector3(
+        dR,
+        dG,
+        dB
       );
-      Vector3 adjustedLD = new Vector3();
-      lightingDirection.normalize(adjustedLD);
-      adjustedLD.scale(-1);
-      _gl.uniform3fv(_uLightDirection, adjustedLD.array);
+      Vector3 adjustedLD = new Vector3.zero();
+      lightingDirection.normalizeInto(adjustedLD);
+      adjustedLD.scale(-1.0);
+      //Float32List f32LD = new Float32List(3);
+      //adjustedLD.copyIntoArray(f32LD);
+      //_gl.uniform3fv(_uLightDirection, f32LD);
+      _gl.uniform3f(_uLightDirection, adjustedLD.x, adjustedLD.y, adjustedLD.z);
+
       
       _gl.uniform3f(
-        _uDirectionalColor,
-        _elmDirectionalR.valueAsNumber / 100,
-        _elmDirectionalG.valueAsNumber / 100,
-        _elmDirectionalB.valueAsNumber / 100
+        _uDirectionalColor, r, g, b
       );
     }
     
-    _gl.bindBuffer(WebGLRenderingContext.ELEMENT_ARRAY_BUFFER, _cubeVertexIndexBuffer);
+    _gl.bindBuffer(webgl.RenderingContext.ELEMENT_ARRAY_BUFFER, _cubeVertexIndexBuffer);
     _setMatrixUniforms();
-    _gl.drawElements(WebGLRenderingContext.TRIANGLES, 36, WebGLRenderingContext.UNSIGNED_SHORT, 0);
+    _gl.drawElements(webgl.RenderingContext.TRIANGLES, 36, webgl.RenderingContext.UNSIGNED_SHORT, 0);
     
     // rotate
     _animate(time);
     _handleKeys();
     
     // keep drawing
-    window.webkitRequestAnimationFrame(this.render);
+    _renderFrame();
   }
   
   void _handleKeyDown(KeyboardEvent event) {
+    if( (event.keyCode > 0) && (event.keyCode < 128))
     _currentlyPressedKeys[event.keyCode] = true;
   }
   
   void _handleKeyUp(KeyboardEvent event) {
+    if( (event.keyCode > 0) && (event.keyCode < 128))
     _currentlyPressedKeys[event.keyCode] = false;
   }
   
-  void _animate(int timeNow) {
+  void _animate(double time) {
     if (_lastTime != 0) {
-        int elapsed = timeNow - _lastTime;
+        double animationStep = time - _lastTime;
 
-        _xRot += (_xSpeed * elapsed) / 1000.0;
-        _yRot += (_ySpeed * elapsed) / 1000.0;
+        _xRot += (90 * animationStep) / 1000.0;
+        _yRot += (90 * animationStep) / 1000.0;
     }
-    _lastTime = timeNow;
+    _lastTime = time;
   }
   
   void _handleKeys() {
@@ -478,17 +541,20 @@ class Lesson06 {
   }
   
   double _degToRad(double degrees) {
-    return degrees * Math.PI / 180;
+    return degrees * PI / 180;
   }
   
   void start() {
-    _lastTime = (new Date.now()).value;
-    window.webkitRequestAnimationFrame(this.render);
+    this._renderFrame();
+  }
+  
+  void _renderFrame() {
+    window.requestAnimationFrame((num time) { this.render(time); });
   }
   
 }
 
 void main() {
-  Lesson06 lesson = new Lesson06(document.query('#drawHere'));
+  Lesson06 lesson = new Lesson06(querySelector('#drawHere'));
   lesson.start();
 }

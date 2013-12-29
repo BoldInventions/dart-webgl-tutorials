@@ -25,9 +25,9 @@ class Lesson05 {
   webgl.Buffer _cubeVertexPositionBuffer;
   webgl.Buffer _cubeVertexIndexBuffer;
   
-  mat4 _pMatrix;
-  mat4 _mvMatrix;
-  Queue<mat4> _mvMatrixStack;
+  Matrix4 _pMatrix;
+  Matrix4 _mvMatrix;
+  Queue<Matrix4> _mvMatrixStack;
   
   int _aVertexPosition;
   int _aTextureCoord;
@@ -47,8 +47,8 @@ class Lesson05 {
     _viewportHeight = canvas.height;
     _gl = canvas.getContext("experimental-webgl");
     
-    _mvMatrix = new mat4();
-    _pMatrix = new mat4();
+    _mvMatrix = new Matrix4.identity();
+    _pMatrix = new Matrix4.identity();
     
     _initShaders();
     _initBuffers();
@@ -275,12 +275,12 @@ class Lesson05 {
 //    Matrix4.perspective(45, _viewportWidth / _viewportHeight, 0.1, 100.0, _pMatrix);
     _pMatrix = makePerspectiveMatrix(radians(45.0), _viewportWidth / _viewportHeight, 0.1, 100.0);
     
-    _mvMatrix = new mat4.identity();
-    _mvMatrix.translate(new vec3(0.0, 0.0, -5.0));
+    _mvMatrix = new Matrix4.identity();
+    _mvMatrix.translate(new Vector3(0.0, 0.0, -5.0));
 
-    _mvMatrix.rotate(new vec3(1, 0, 0), radians(_xRot));
-    _mvMatrix.rotate(new vec3(0, 1, 0), radians(_yRot));
-    _mvMatrix.rotate(new vec3(0, 0, 1), radians(_zRot));
+    _mvMatrix.rotate(new Vector3(1.0, 0.0, 0.0), radians(_xRot));
+    _mvMatrix.rotate(new Vector3(0.0, 1.0, 0.0), radians(_yRot));
+    _mvMatrix.rotate(new Vector3(0.0, 0.0, 1.0), radians(_zRot));
     
     // verticies
     _gl.bindBuffer(webgl.RenderingContext.ARRAY_BUFFER, _cubeVertexPositionBuffer);
@@ -327,6 +327,6 @@ class Lesson05 {
 }
 
 void main() {
-  Lesson05 lesson = new Lesson05(document.query('#drawHere'));
+  Lesson05 lesson = new Lesson05(querySelector('#drawHere'));
 //  lesson.start();
 }

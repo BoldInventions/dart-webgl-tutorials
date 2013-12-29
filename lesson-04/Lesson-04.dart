@@ -25,9 +25,9 @@ class Lesson04 {
   webgl.Buffer _cubeVertexColorBuffer;
   webgl.Buffer _cubeVertexIndexBuffer;
   
-  mat4 _pMatrix;
-  mat4 _mvMatrix;
-  Queue<mat4> _mvMatrixStack;
+  Matrix4 _pMatrix;
+  Matrix4 _mvMatrix;
+  Queue<Matrix4> _mvMatrixStack;
   
   int _aVertexPosition;
   int _aVertexColor;
@@ -297,11 +297,11 @@ class Lesson04 {
     _pMatrix = makePerspectiveMatrix(radians(45.0), _viewportWidth / _viewportHeight, 0.1, 100.0);
     
     // draw triangle
-    _mvMatrix = new mat4.identity();
-    _mvMatrix.translate(new vec3(-1.5, 0.0, -8.0));
+    _mvMatrix = new Matrix4.identity();
+    _mvMatrix.translate(new Vector3(-1.5, 0.0, -8.0));
     
     _mvPushMatrix();
-    _mvMatrix.rotate(new vec3(0, 1, 0), radians(_rPyramid));
+    _mvMatrix.rotate(new Vector3(0.0, 1.0, 0.0), radians(_rPyramid));
     
     // verticies
     _gl.bindBuffer(webgl.RenderingContext.ARRAY_BUFFER, _pyramidVertexPositionBuffer);
@@ -316,10 +316,10 @@ class Lesson04 {
     _mvPopMatrix();
     
     // draw square
-    _mvMatrix.translate(new vec3(3.0, 0.0, 0.0));
+    _mvMatrix.translate(new Vector3(3.0, 0.0, 0.0));
     
     _mvPushMatrix();
-    _mvMatrix.rotate(new vec3(1, 1, 1), radians(_rCube));
+    _mvMatrix.rotate(new Vector3(1.0, 1.0, 1.0), radians(_rCube));
     
     // verticies
     _gl.bindBuffer(webgl.RenderingContext.ARRAY_BUFFER, _cubeVertexPositionBuffer);
@@ -356,6 +356,6 @@ class Lesson04 {
 }
 
 void main() {
-  Lesson04 lesson = new Lesson04(document.query('#drawHere'));
+  Lesson04 lesson = new Lesson04(querySelector('#drawHere'));
   lesson.start();
 }

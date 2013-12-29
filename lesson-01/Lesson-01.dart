@@ -5,6 +5,8 @@ import 'package:vector_math/vector_math.dart';
 import 'dart:web_gl' as webgl;
 import 'dart:typed_data';
 
+
+
 /**
  * based on:
  * http://learningwebgl.com/blog/?p=28
@@ -20,8 +22,8 @@ class Lesson01 {
   int _viewportWidth;
   int _viewportHeight;
   
-  mat4 _pMatrix;
-  mat4 _mvMatrix;
+  Matrix4 _pMatrix;
+  Matrix4 _mvMatrix;
   
   int _aVertexPosition;
   webgl.UniformLocation _uPMatrix;
@@ -157,8 +159,8 @@ class Lesson01 {
     // field of view is 45°, width-to-height ratio, hide things closer than 0.1 or further than 100
     _pMatrix = makePerspectiveMatrix(radians(45.0), _viewportWidth / _viewportHeight, 0.1, 100.0);
     
-    _mvMatrix = new mat4.identity();
-    _mvMatrix.translate(new vec3(-1.5, 0.0, -7.0));
+    _mvMatrix = new Matrix4.identity();
+    _mvMatrix.translate(new Vector3(-1.5, 0.0, -7.0));
     
     // draw triangle
     _gl.bindBuffer(webgl.RenderingContext.ARRAY_BUFFER, _triangleVertexPositionBuffer);
@@ -167,7 +169,7 @@ class Lesson01 {
     _gl.drawArrays(webgl.RenderingContext.TRIANGLES, 0, 3); // triangles, start at 0, total 3
     
     // draw square
-    _mvMatrix.translate(new vec3(3.0, 0.0, 0.0));
+    _mvMatrix.translate(new Vector3(3.0, 0.0, 0.0));
     
     _gl.bindBuffer(webgl.RenderingContext.ARRAY_BUFFER, _squareVertexPositionBuffer);
     _gl.vertexAttribPointer(_aVertexPosition, _dimensions, webgl.RenderingContext.FLOAT, false, 0, 0);
@@ -179,6 +181,6 @@ class Lesson01 {
 }
 
 void main() {
-  Lesson01 lesson = new Lesson01(document.query('#drawHere'));
+  Lesson01 lesson = new Lesson01(querySelector('#drawHere'));
   lesson.render();
 }
