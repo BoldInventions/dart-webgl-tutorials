@@ -1,3 +1,4 @@
+
 import 'dart:html';
 import 'package:vector_math/vector_math.dart';
 import 'dart:collection';
@@ -12,7 +13,7 @@ import 'dart:math';
  *
  * NOTE: To run this example you have to open in on a webserver (url starting with http:// NOT file:///)!
  */
-class Lesson06 {
+class Lesson07 {
   
   CanvasElement _canvas;
   webgl.RenderingContext _gl;
@@ -47,9 +48,9 @@ class Lesson06 {
   InputElement _elmLightDirectionX, _elmLightDirectionY, _elmLightDirectionZ;
   InputElement _elmDirectionalR, _elmDirectionalG, _elmDirectionalB;
   
-  double _xRot = 0.0, _xSpeed = 0.0,
-         _yRot = 0.0, _ySpeed = 0.0,
-         _zPos = -5.0;
+  double _xRot = 0.0, _xSpeed = 5.0,
+      _yRot = 0.0, _ySpeed = 5.0,
+      _zPos = -5.0;
   
   int _filter = 0;
   double _lastTime = 0.0;
@@ -59,7 +60,7 @@ class Lesson06 {
   var _requestAnimationFrame;
   
   
-  Lesson06(CanvasElement canvas) {
+  Lesson07(CanvasElement canvas) {
     // weird, but without specifying size this array throws exception on []
     _currentlyPressedKeys = new List<bool>(128);
     for(int i=0; i<128; i++) _currentlyPressedKeys[i]=false;
@@ -74,15 +75,7 @@ class Lesson06 {
     _initBuffers();
     _initTexture();
     
-    /*if (window.dynamic['requestAnimationFrame']) {
-      _requestAnimationFrame = window.requestAnimationFrame;
-    } else if (window.dynamic['webkitRequestAnimationFrame']) {
-      _requestAnimationFrame = window.webkitRequestAnimationFrame;
-    } else if (window.dynamic['mozRequestAnimationFrame']) {
-      _requestAnimationFrame = window.mozRequestAnimationFrame;
-    }*/
-    //_requestAnimationFrame = window.webkitRequestAnimationFrame;
-    
+
     _gl.clearColor(0.0, 0.0, 0.0, 1.0);
     _gl.enable(webgl.RenderingContext.DEPTH_TEST);
     
@@ -402,7 +395,7 @@ class Lesson06 {
     _pMatrix = makePerspectiveMatrix(radians(45.0), _viewportWidth / _viewportHeight, 0.1, 100.0);
     
     _mvMatrix = new Matrix4.identity();
-    _mvMatrix.translate(new Vector3(0.0, 0.0, -5.0));
+    _mvMatrix.translate(new Vector3(0.0, 0.0, _zPos));
 
     _mvMatrix.rotate(new Vector3(1.0, 0.0, 0.0), radians(_xRot));
     _mvMatrix.rotate(new Vector3(0.0, 1.0, 0.0), radians(_yRot));
@@ -507,34 +500,34 @@ class Lesson06 {
     if (_lastTime != 0) {
         double animationStep = time - _lastTime;
 
-        _xRot += (90 * animationStep) / 1000.0;
-        _yRot += (90 * animationStep) / 1000.0;
+        _xRot += (90 * animationStep * _xSpeed) / 5000.0;
+        _yRot += (90 * animationStep * _ySpeed) / 5000.0;
     }
     _lastTime = time;
   }
   
   void _handleKeys() {
-    if (_currentlyPressedKeys[33]) {
+    if (_currentlyPressedKeys[KeyCode.NUM_FIVE]) {
       // Page Up
       _zPos -= 0.05;
     }
-    if (_currentlyPressedKeys[34]) {
+    if (_currentlyPressedKeys[KeyCode.NUM_ZERO]) {
       // Page Down
       _zPos += 0.05;
     }
-    if (_currentlyPressedKeys[37]) {
+    if (_currentlyPressedKeys[KeyCode.NUM_EIGHT]) {
       // Left cursor key
       _ySpeed -= 1;
     }
-    if (_currentlyPressedKeys[39]) {
+    if (_currentlyPressedKeys[KeyCode.NUM_TWO]) {
       // Right cursor key
       _ySpeed += 1;
     }
-    if (_currentlyPressedKeys[38]) {
+    if (_currentlyPressedKeys[KeyCode.NUM_FOUR]) {
       // Up cursor key
       _xSpeed -= 1;
     }
-    if (_currentlyPressedKeys[40]) {
+    if (_currentlyPressedKeys[KeyCode.NUM_SIX]) {
       // Down cursor key
       _xSpeed += 1;
     }
@@ -555,6 +548,6 @@ class Lesson06 {
 }
 
 void main() {
-  Lesson06 lesson = new Lesson06(querySelector('#drawHere'));
+  Lesson07 lesson = new Lesson07(querySelector('#drawHere'));
   lesson.start();
 }

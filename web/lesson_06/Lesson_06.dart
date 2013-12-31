@@ -35,8 +35,8 @@ class Lesson06 {
   webgl.UniformLocation _uMVMatrix;
   webgl.UniformLocation _samplerUniform;
   
-  double _xRot = 0.0, _xSpeed = 0.0,
-         _yRot = 0.0, _ySpeed = 0.0,
+  double _xRot = 0.0, _xSpeed = 5.0,
+         _yRot = 0.0, _ySpeed = 5.0,
          _zPos = -5.0;
   
   int _filter = 0;
@@ -46,7 +46,7 @@ class Lesson06 {
   
   var _requestAnimationFrame;
   List<webgl.Texture> _textures;
-  
+  Element elemTextUnderCanvas;
   
   Lesson06(CanvasElement canvas) {
     // weird, but without specifying size this array throws exception on []
@@ -80,7 +80,7 @@ class Lesson06 {
     window.onKeyUp.listen(this._handleKeyUp);
     window.onKeyDown.listen(this._handleKeyDown);
 
-    
+    elemTextUnderCanvas = querySelector("#sample_text_id");
   }
   
 
@@ -272,7 +272,13 @@ class Lesson06 {
     image.src = "./crate.gif";
   }
   
+  List<String> _listFilterNames;
+  
   void _handleLoadedTexture(List<webgl.Texture> textures, ImageElement img) {
+    _listFilterNames = new List<String>();
+    _listFilterNames.add("Nearest");
+    _listFilterNames.add("Linear");
+    _listFilterNames.add("Linear_Mipmap_Nearest");
     _gl.pixelStorei(webgl.RenderingContext.UNPACK_FLIP_Y_WEBGL, 1); // second argument must be an int (no boolean)
     
     _gl.bindTexture(webgl.RenderingContext.TEXTURE_2D, textures[0]);
@@ -314,7 +320,7 @@ class Lesson06 {
     _pMatrix = makePerspectiveMatrix(radians(45.0), _viewportWidth / _viewportHeight, 0.1, 100.0);
     
     _mvMatrix = new Matrix4.identity();
-    _mvMatrix.translate(new Vector3(0.0, 0.0, -5.0));
+    _mvMatrix.translate(new Vector3(0.0, 0.0, _zPos));
 
     _mvMatrix.rotate(new Vector3(1.0, 0.0, 0.0), radians(_xRot));
     _mvMatrix.rotate(new Vector3(0.0, 1.0, 0.0), radians(_yRot));
@@ -358,8 +364,8 @@ class Lesson06 {
     if (_lastTime != 0) {
         double animationStep = time - _lastTime;
 
-        _xRot += (90 * animationStep) / 1000.0;
-        _yRot += (90 * animationStep) / 1000.0;
+        _xRot += (90 * animationStep * _xSpeed) / 5000.0;
+        _yRot += (90 * animationStep * _ySpeed) / 5000.0;
     }
     _lastTime = time;
   }
@@ -370,39 +376,44 @@ class Lesson06 {
       if (_filter == 3) {
         _filter = 0;
       }
+      if( (elemTextUnderCanvas != null) && (_listFilterNames != null))
+      {
+        elemTextUnderCanvas.text = "Filter: ${_listFilterNames[_filter]}";
+      }
     } else {
       _currentlyPressedKeys[event.keyCode] = true;
     }
   }
   
   void _handleKeyUp(KeyboardEvent event) {
+    if( (event.keyCode >0) && ( event.keyCode < 128) )
     _currentlyPressedKeys[event.keyCode] = false;
   }
   
 
   
   void _handleKeys() {
-    if (_currentlyPressedKeys[33]) {
+    if (_currentlyPressedKeys[KeyCode.NUM_FIVE]) {
       // Page Up
       _zPos -= 0.05;
     }
-    if (_currentlyPressedKeys[34]) {
+    if (_currentlyPressedKeys[KeyCode.NUM_ZERO]) {
       // Page Down
       _zPos += 0.05;
     }
-    if (_currentlyPressedKeys[37]) {
+    if (_currentlyPressedKeys[KeyCode.NUM_EIGHT]) {
       // Left cursor key
       _ySpeed -= 1;
     }
-    if (_currentlyPressedKeys[39]) {
+    if (_currentlyPressedKeys[KeyCode.NUM_TWO]) {
       // Right cursor key
       _ySpeed += 1;
     }
-    if (_currentlyPressedKeys[38]) {
+    if (_currentlyPressedKeys[KeyCode.NUM_FOUR]) {
       // Up cursor key
       _xSpeed -= 1;
     }
-    if (_currentlyPressedKeys[40]) {
+    if (_currentlyPressedKeys[KeyCode.NUM_SIX]) {
       // Down cursor key
       _xSpeed += 1;
     }
